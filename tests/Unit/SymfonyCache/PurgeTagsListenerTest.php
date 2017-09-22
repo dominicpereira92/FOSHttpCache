@@ -57,7 +57,7 @@ class PurgeTagsListenerTest extends TestCase
         $request->headers->set('X-Cache-Tags', 'foobar,other tag');
         $event = new CacheEvent($kernel, $request);
 
-        $purgeTagsListener->handlePurge($event);
+        $purgeTagsListener->handlePurgeTags($event);
         $response = $event->getResponse();
 
         $this->assertInstanceOf(Response::class, $response);
@@ -81,7 +81,7 @@ class PurgeTagsListenerTest extends TestCase
         $request->headers->set('X-Cache-Tags', 'foobar,other tag');
         $event = new CacheEvent($kernel, $request);
 
-        $purgeTagsListener->handlePurge($event);
+        $purgeTagsListener->handlePurgeTags($event);
         $response = $event->getResponse();
 
         $this->assertInstanceOf(Response::class, $response);
@@ -104,7 +104,7 @@ class PurgeTagsListenerTest extends TestCase
         $request->headers->set('X-Cache-Tags', 'foobar,other tag');
         $event = new CacheEvent($kernel, $request);
 
-        $purgeTagsListener->handlePurge($event);
+        $purgeTagsListener->handlePurgeTags($event);
         $response = $event->getResponse();
 
         $this->assertInstanceOf(Response::class, $response);
@@ -120,7 +120,7 @@ class PurgeTagsListenerTest extends TestCase
         $request = Request::create('http://example.com/foo', 'PURGETAGS');
         $event = new CacheEvent($kernel, $request);
 
-        $purgeTagsListener->handlePurge($event);
+        $purgeTagsListener->handlePurgeTags($event);
         $response = $event->getResponse();
 
         $this->assertInstanceOf(Response::class, $response);
@@ -135,7 +135,7 @@ class PurgeTagsListenerTest extends TestCase
         $request = Request::create('http://example.com/foo', 'PURGETAGS');
         $event = new CacheEvent($kernel, $request);
 
-        $purgeTagsListener->handlePurge($event);
+        $purgeTagsListener->handlePurgeTags($event);
         $response = $event->getResponse();
 
         $this->assertInstanceOf(Response::class, $response);
@@ -159,7 +159,7 @@ class PurgeTagsListenerTest extends TestCase
         $request = Request::create('http://example.com/foo', 'PURGETAGS');
         $event = new CacheEvent($kernel, $request);
 
-        $purgeTagsListener->handlePurge($event);
+        $purgeTagsListener->handlePurgeTags($event);
         $this->assertNull($event->getResponse());
     }
 

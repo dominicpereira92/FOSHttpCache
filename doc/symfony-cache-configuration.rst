@@ -131,7 +131,6 @@ other hosts, provide the IPs of the machines allowed to purge, or provide a
 RequestMatcher that checks for an Authorization header or similar. *Only set
 one of ``client_ips`` or ``client_matcher``*.
 
-
 * **client_ips**: String with IP or array of IPs that are allowed to
   purge the cache.
 
@@ -146,21 +145,51 @@ one of ``client_ips`` or ``client_matcher``*.
 
   **default**: ``PURGE``
 
+Refresh
+~~~~~~~
 
-Purge tags (cache invalidation using tags)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To support :ref:`cache refresh <cache refresh>`, register the
+``RefreshListener``. You can pass the constructor an option to specify
+what clients are allowed to refresh cache entries.
+
+The refresh listener needs to access the ``HttpCache::fetch`` method which
+is protected on the base HttpCache class. The ``EventDispatchingHttpCache``
+exposes the method as public, but if you implement your own kernel, you need
+to overwrite the method to make it public.
+
+Refreshing is only allowed from the same machine by default. To refresh from
+other hosts, provide the IPs of the machines allowed to refresh, or provide a
+RequestMatcher that checks for an Authorization header or similar. *Only set
+one of ``client_ips`` or ``client_matcher``*.
+
+
+* **client_ips**: String with IP or array of IPs that are allowed to
+  refresh the cache.
+
+  **default**: ``127.0.0.1``
+
+* **client_matcher**: RequestMatcher that only matches requests that are
+  allowed to refresh.
+
+  **default**: ``null``
+
+Tagging
+~~~~~~~
 
 .. versionadded:: 2.1
 
-    Support for tag invalidation in Symfony HttpCache has been added in
+    Support for tag invalidation with Symfony HttpCache has been added in
     version 2.1.
 
+To support :doc:`cache tags <response-tagging>`, register the
+``PurgeTagsListener``. For this listener to work, you must use the
+:ref:`TaggableStore <taggablestore>` provided in this library, instead of the
+default cache implementation.
 
-See :ref:`TaggableStore <taggablestore>` for extended description.
-
-Purging tags is only allowed from the same machine by default.
-You can configure the listener just the same as the `PurgeListener` plus the
-`purge_tags_method` and `purge_tags_header`:
+Purging tags is only allowed from the same machine by default. To change this,
+you have the same configuration options as with the ``PurgeListener``. *Only
+set one of ``client_ips`` or ``client_matcher``*. Additionally, you can
+configure the HTTP method and header used for tag purging:
 
 * **client_ips**: String with IP or array of IPs that are allowed to
   purge the cache.
@@ -180,12 +209,13 @@ You can configure the listener just the same as the `PurgeListener` plus the
 
   **default**: ``X-Cache-Tags``
 
-If you want support for tag based cache invalidation, you need to register both,
-the ``PurgeListener`` and the ``TaggableStore`` so your ``AppCache`` should end
-up looking like this::
+To get cache tagging support, register the ``PurgeTagsListener`` and use the
+``TaggableStore`` in your ``AppCache``::
 
-    use FOS\HttpCache\SymfonyCache\TaggableStore();
-    use FOS\HttpCache\SymfonyCache\PurgeTagsListener();
+    // app/AppCache.php
+
+    use FOS\HttpCache\SymfonyCache\TaggableStore;
+    use FOS\HttpCache\SymfonyCache\PurgeTagsListener;
 
     // ...
 
@@ -197,55 +227,48 @@ up looking like this::
         SurrogateInterface $surrogate = null,
         array $options = []
     ) {
-        $store = new TaggableStore($kernel->getCacheDir());
+        $store = new TaggableStore(['cache_directory' => $kernel->getCacheDir()]);
 
         parent::__construct($kernel, $store, $surrogate, $options);
 
         $this->addSubscriber(new PurgeTagsListener());
     }
 
-
 .. _taggablestore:
 
-The TaggableStore
-^^^^^^^^^^^^^^^^^
+TaggableStore
+^^^^^^^^^^^^^
 
 .. versionadded:: 2.1
 
     The ``TaggableStore`` has been added in version 2.1.
 
-.. warning::
+.. note::
 
     You need at least versions 3.4 of ``symfony/cache`` and ``symfony/lock``
-    to use this feature! Add the following lines to your ``composer.json`` and run
-    ``composer update``::
+    to use this feature. Add the following lines to your ``composer.json`` and run
+    ``composer update``:
 
         "symfony/lock": "^3.4",
         "symfony/cache": "^3.4",
 
+Symfony's ``HttpCache`` store implementation does not support tags. Therefore,
+this library ships with a ``TaggableStore`` that is build on top of PSR-6 to
+provide this functionality.
 
-Symfony's ``HttpCache`` does not support tags based cache invalidation by default.
-However, this library ships with a ``TaggableStore`` and a corresponding
-``PurgeTagsListener`` which provide this functionality.
 Even if you do not want to invalidate cache entries by tags, you might be
-interested in using the ``TaggableStore`` instead of the default ``Store``
-implementation Symfony ships with.
+interested in using the ``TaggableStore``, as this store leverages the
+functionality of PSR-6 to prune expired cache entries to free up disk space.
 
-That's because ``TaggableStore`` also prunes expired entries on a regular basis
-which is something the default ``Store`` does not. The default ``Store`` keeps
-filling up your file system without ever cleaning up expired cache entries.
-The ``TaggableStore`` counts all the cache write operations (so fetching items
-from the cache is not slowed down) and after reaching a configurable
-threshold (default ``500``), it prunes expired data. If you want to disable
-pruning, you can set the option ``prune_threshold`` to ``0``.
-This means that after every ``500`` HTTP cache writes, your file system directory
-will be cleaned up and thus kept in good shape.
-You can configure the prune threshold by providing a different threshold as
-second argument to the constructor of ``TaggableStore``.
+By default, the ``TaggableStore`` prunes the cache after a configurable number
+of cache write operations. You can disable automatic pruning, e.g. if you set
+up a cron job to prune, by setting the option ``prune_threshold`` to ``0``.
 
-For this to work, you have to use the ``TaggableStore`` in your kernel::
+Use the ``TaggableStore`` in your ``AppCache``::
 
-    use FOS\HttpCache\SymfonyCache\PurgeTagsListener();
+    // app/AppCache.php
+
+    use FOS\HttpCache\SymfonyCache\PurgeTagsListener;
 
     // ...
 
@@ -257,7 +280,7 @@ For this to work, you have to use the ``TaggableStore`` in your kernel::
         SurrogateInterface $surrogate = null,
         array $options = []
     ) {
-        $store = new TaggableStore($kernel->getCacheDir());
+        $store = new TaggableStore(['cache_directory' => $kernel->getCacheDir()]);
 
         parent::__construct($kernel, $store, $surrogate, $options);
     }
@@ -265,55 +288,56 @@ For this to work, you have to use the ``TaggableStore`` in your kernel::
 The ``TaggableStore`` can be configured by passing an array of ``$options`` as a
 second argument:
 
-* **prune_threshold**: Configure the number of write actions until the
-  store will prune the expired cache entries. Pass 0 if you want to disable
-  automated pruning.
-  Type: int
+* **cache_directory**: Path to the cache directory for the default cache
+  adapter and lock factory.
+
+  Either this or both cache and lock_factory are required.
+
+  **Type**: ``string``
+
+* **cache**: Explicitly specify the cache adapter you want to use. Make sure
+  that lock and cache have the same scope. *See warning below!*
+
+  **Type**: ``Symfony\Component\Cache\Adapter\TagAwareAdapterInterface``
+  **Default**: ``FilesystemAdapter`` instance with cache_directory
+
+* **lock_factory**: Explicitly specify the lock factory you want to use. Make
+  sure that lock and cache have the same scope. *See warning below!*
+
+  **Type**: ``Symfony\Component\Lock\Factory``
+  **Default**: ``Factory`` with ``SemaphoreStore`` if supported, ``FlockStore`` otherwise
+
+* **prune_threshold**: Configure the number of write actions until the store
+  will prune the expired cache entries. Pass 0 to disable automated pruning.
+
+  **Type**: ``int``
+  **Default**: 500
 
 * **purge_tags_header**: The HTTP header name used to check for tags
-  Type: string
 
-* **cache**: The cache adapter.
-  Use this option if you want to use a different cache implementation than the
-  default one.
-  Note that there are very good reasons that the local adapters are used by
-  default. This is to protect you as a developer! Only override it if you're
-  really sure your cache implementation meets the needs of Symfony's HttpCache.
-  Type: Symfony\Component\Cache\Adapter\TagAwareAdapterInterface
+  **Type**: ``string``
+  **Default**: ``X-Cache-Tags``
 
-* **lock_factory**: The lock factory.
-  Use this option if you want to use a different lock implementation than the
-  default one.
-  Note that there are very good reasons that the local adapters are used by
-  default. This is to protect you as a developer! Only override it if you're
-  really sure your lock implementation meets the needs of Symfony's HttpCache.
-  Type: Symfony\Component\Lock\Factory
+.. warning::
 
-Refresh
-~~~~~~~
+    It is possible to configure other cache adapters or lock stores than the
+    filesystem ones. Only do this if you are sure of what you are doing. In
+    `this pull request`_ Fabien Potentier refused to add PSR-6 store support to
+    the Symfony ``AppCache`` with the following arguments:
 
-To support :ref:`cache refresh <cache refresh>`, register the
-``RefreshListener``. You can pass the constructor an option to specify
-what clients are allowed to refresh cache entries. Refreshing is only allowed
-from the same machine by default. To refresh from other hosts, provide the
-IPs of the machines allowed to refresh, or provide a RequestMatcher that
-checks for an Authorization header or similar. *Only set one of
-``client_ips`` or ``client_matcher``*.
+        * Using a filesystem allows for ``opcache`` to make the cache very
+          effective;
+        * The cache contains some PHP (when using ESI for instance) and storing
+          PHP in anything else than a filesystem would mean ``eval()``-ing
+          strings coming from Redis / Memcache /...;
+        * HttpCache is triggered very early and does not have access to the
+          container or anything else really. And it should stay that way to be
+          efficient.
 
-The refresh listener needs to access the ``HttpCache::fetch`` method which
-is protected on the base HttpCache class. The ``EventDispatchingHttpCache``
-exposes the method as public, but if you implement your own kernel, you need
-to overwrite the method to make it public.
-
-* **client_ips**: String with IP or array of IPs that are allowed to
-  refresh the cache.
-
-  **default**: ``127.0.0.1``
-
-* **client_matcher**: RequestMatcher that only matches requests that are
-  allowed to refresh.
-
-  **default**: ``null``
+    While the first and third point depend on what you do and need, be sure to
+    respect the second point. If you use network enabled caches like Redis or
+    Memcache, make sure that they are not shared with other systems in your
+    hosting center to avoid code injection.
 
 .. _symfony-cache user context:
 
@@ -414,3 +438,4 @@ and at the HTML body of the response.
 
 .. _HttpCache: http://symfony.com/doc/current/book/http_cache.html#symfony-reverse-proxy
 .. _HttpKernel: http://symfony.com/doc/current/components/http_kernel.html
+.. _this pull request: https://github.com/symfony/symfony/pull/20061#issuecomment-313339092

@@ -2,7 +2,9 @@ admin
 backend
 cacheable
 config
+cron
 css
+filesystem
 hostname
 hostnames
 http
@@ -12,7 +14,10 @@ localhost
 middleware
 middlewares
 namespace
+Memcache
 nginx
+Potentier
+Redis
 roundtrip
 symfony
 whitelisted

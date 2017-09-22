@@ -6,12 +6,13 @@ See also the [GitHub releases page](https://github.com/FriendsOfSymfony/FOSHttpC
 2.1.x (unreleased)
 ------------------
 
-* Upgraded phpunit to 5.7 / 6. If you use anything from the FOS\HttpCache\Test
-  namespace you need to update your project to use phpunit 6 (or 5.7, if you
-  are using PHP 5.6).
-* Added a `TaggableStore` and a `PurgeTagsListener` that adds support for chache
-  invalidation based on tags for the Symfony reverse proxy (`HttpCache`). The
-  `TaggableStore` also supports pruning the cache directory.
+* [Testing] Upgraded phpunit to 5.7 / 6. If you use anything from the
+  `FOS\HttpCache\Test` namespace you need to update your project to use
+  PHPUnit 6 (or 5.7, if you are using PHP 5.6).
+* [Symfony HttpCache] Added a `TaggableStore` and a `PurgeTagsListener` for tag
+  based invalidation with the Symfony `HttpCache` reverse caching proxy. The
+  `TaggableStore` builds on PSR-6 cache and supports pruning expired cache
+  entries.
 
 2.0.2
 -----

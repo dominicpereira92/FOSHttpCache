@@ -19,6 +19,8 @@ use Symfony\Component\Cache\Adapter\TagAwareAdapter;
 use Symfony\Component\Cache\Adapter\TagAwareAdapterInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Lock\Factory;
+use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
 
 class TaggableStoreTest extends TestCase
 {
@@ -29,13 +31,28 @@ class TaggableStoreTest extends TestCase
 
     protected function setUp()
     {
-        $this->store = new TaggableStore(sys_get_temp_dir());
+        $this->store = new TaggableStore(['cache_directory' => sys_get_temp_dir()]);
     }
 
     protected function tearDown()
     {
         $this->getCache()->clear();
         $this->store->cleanup();
+    }
+
+    public function testCustomCacheAndLockFactory()
+    {
+        $cache = $this->createMock(TagAwareAdapterInterface::class);
+        $cache->expects($this->once())
+            ->method('deleteItem');
+        $lockFactory = $this->createMock(Factory::class);
+
+        $store = new TaggableStore([
+            'cache' => $cache,
+            'lock_factory' => $lockFactory,
+        ]);
+
+        $store->purge('/');
     }
 
     public function testItLocksTheRequest()
@@ -119,7 +136,10 @@ class TaggableStoreTest extends TestCase
             ->method('saveDeferred')
             ->willReturn(false);
 
-        $store = new TaggableStore(sys_get_temp_dir(), ['cache' => $cache]);
+        $store = new TaggableStore([
+            'cache_directory' => sys_get_temp_dir(),
+            'cache' => $cache,
+        ]);
 
         $request = Request::create('/');
         $response = new Response('hello world', 200);
@@ -220,7 +240,10 @@ class TaggableStoreTest extends TestCase
             ->method('invalidateTags')
             ->willThrowException(new \Symfony\Component\Cache\Exception\InvalidArgumentException());
 
-        $store = new TaggableStore(sys_get_temp_dir(), ['cache' => $cache]);
+        $store = new TaggableStore([
+            'cache_directory' => sys_get_temp_dir(),
+            'cache' => $cache,
+        ]);
 
         $this->assertFalse($store->invalidateTags(['foobar']));
     }
@@ -402,7 +425,8 @@ class TaggableStoreTest extends TestCase
             ->expects($this->exactly(3))
             ->method('prune');
 
-        $store = new TaggableStore(sys_get_temp_dir(), [
+        $store = new TaggableStore([
+            'cache_directory' => sys_get_temp_dir(),
             'cache' => $cache,
             'prune_threshold' => 5,
         ]);
@@ -429,7 +453,8 @@ class TaggableStoreTest extends TestCase
             ->expects($this->never())
             ->method('prune');
 
-        $store = new TaggableStore(sys_get_temp_dir(), [
+        $store = new TaggableStore([
+            'cache_directory' => sys_get_temp_dir(),
             'cache' => $cache,
             'prune_threshold' => 0,
         ]);
@@ -442,6 +467,12 @@ class TaggableStoreTest extends TestCase
         }
 
         $store->cleanup();
+    }
+
+    public function testItFailsWithoutDirectory()
+    {
+        $this->expectException(MissingOptionsException::class);
+        new TaggableStore([]);
     }
 
     /**

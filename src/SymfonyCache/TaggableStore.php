@@ -26,6 +26,8 @@ use Symfony\Component\Lock\LockInterface;
 use Symfony\Component\Lock\Store\FlockStore;
 use Symfony\Component\Lock\Store\SemaphoreStore;
 use Symfony\Component\Lock\StoreInterface as LockStoreInterface;
+use Symfony\Component\OptionsResolver\Exception\MissingOptionsException;
+use Symfony\Component\OptionsResolver\Options;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
@@ -61,38 +63,37 @@ class TaggableStore implements StoreInterface
     /**
      * When creating a TaggableStore you can configure a number options.
      *
-     * - prune_threshold:       Configure the number of write actions until the
-     *                          store will prune the expired cache entries. Pass
-     *                          0 if you want to disable automated pruning.
-     *                          Type: int
+     * Either cache_directory or cache and lock_factory are required. If you
+     * want to set a custom cache / lock_factory, please **read the warning in
+     * the library docs first**:
+     * http://foshttpcache.readthedocs.io/en/latest/symfony-cache-configuration.html#taggablestore
      *
-     * - purge_tags_header:     The HTTP header name used to check for tags
-     *                          Type: string
+     * - cache_directory:   Path to the cache directory for the default cache
+     *                      adapter and lock factory.
      *
-     * - cache:                 The cache adapter.
-     *                          Use this option if you want to use a different
-     *                          cache implementation than the default one.
-     *                          Note that there are very good reasons that the
-     *                          local adapters are used by default. This is to
-     *                          protect you as a developer!
-     *                          Only override it if you're really sure your cache
-     *                          implementation meets the needs of Symfony's HttpCache.
-     *                          Type: TagAwareAdapterInterface
+     * - cache:             Explicitly specify the cache adapter you want to
+     *                      use. Make sure that lock and cache have the same
+     *                      scope. *Read the warning linked above!*
      *
-     * - lock_factory:          The lock factory.
-     *                          Use this option if you want to use a different
-     *                          lock implementation than the default one.
-     *                          Note that there are very good reasons that the
-     *                          local adapters are used by default. This is to
-     *                          protect you as a developer!
-     *                          Only override it if you're really sure your lock
-     *                          implementation meets the needs of Symfony's HttpCache.
-     *                          Type: Factory
+     *                      Type: TagAwareAdapterInterface
      *
-     * @param string $cacheDir The cache directory
-     * @param array  $options
+     * - lock_factory:      Explicitly specify the cache adapter you want to
+     *                      use. Make sure that lock and cache have the same
+     *                      scope. *Read the warning linked above!*
+     *
+     *                      Type: Factory
+     *
+     * - prune_threshold:   Configure the number of write actions until the
+     *                      store will prune the expired cache entries. Pass
+     *                      0 to disable automated pruning.
+     *                      Type: int
+     *
+     * - purge_tags_header: The HTTP header name used to check for tags
+     *                      Type: string
+     *
+     * @param array $options
      */
-    public function __construct($cacheDir, array $options = [])
+    public function __construct(array $options = [])
     {
         if (!class_exists(Factory::class)) {
             throw new \RuntimeException('You need at least Symfony 3.4 to use the TaggableStore.');
@@ -100,23 +101,34 @@ class TaggableStore implements StoreInterface
 
         $resolver = new OptionsResolver();
 
-        // Pruning threshold (set to 0 if you want to disable that feature)
+        $resolver->setDefined('cache_directory')
+            ->setAllowedTypes('cache_directory', 'string');
+
         $resolver->setDefault('prune_threshold', 500)
             ->setAllowedTypes('prune_threshold', 'int');
 
-        // HTTP header for tags
         $resolver->setDefault('purge_tags_header', PurgeTagsListener::DEFAULT_PURGE_TAGS_HEADER)
             ->setAllowedTypes('purge_tags_header', 'string');
 
-        // Cache adapter
-        $resolver->setDefault('cache', new TagAwareAdapter(
-            new FilesystemAdapter('fos-http-cache', 0, $cacheDir))
-        )->setAllowedTypes('cache', TagAwareAdapterInterface::class);
+        $resolver->setDefault('cache', function (Options $options) {
+            if (!isset($options['cache_directory'])) {
+                throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
+            }
 
-        // Lock factory
-        $resolver->setDefault('lock_factory', new Factory(
-            $this->getDefaultLockStore($cacheDir))
-        )->setAllowedTypes('lock_factory', Factory::class);
+            return new TagAwareAdapter(
+                new FilesystemAdapter('fos-http-cache', 0, $options['cache_directory'])
+            );
+        })->setAllowedTypes('cache', TagAwareAdapterInterface::class);
+
+        $resolver->setDefault('lock_factory', function (Options $options) {
+            if (!isset($options['cache_directory'])) {
+                throw new MissingOptionsException('The cache_directory option is required unless you set the cache explicitly');
+            }
+
+            return new Factory(
+                $this->getDefaultLockStore($options['cache_directory'])
+            );
+        })->setAllowedTypes('lock_factory', Factory::class);
 
         $this->options = $resolver->resolve($options);
         $this->cache = $this->options['cache'];

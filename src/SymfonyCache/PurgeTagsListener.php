@@ -67,7 +67,7 @@ class PurgeTagsListener extends AccessControlledListener
     public static function getSubscribedEvents()
     {
         return [
-            Events::PRE_INVALIDATE => 'handlePurge',
+            Events::PRE_INVALIDATE => 'handlePurgeTags',
         ];
     }
 
@@ -78,7 +78,7 @@ class PurgeTagsListener extends AccessControlledListener
      *
      * @param CacheEvent $event
      */
-    public function handlePurge(CacheEvent $event)
+    public function handlePurgeTags(CacheEvent $event)
     {
         $request = $event->getRequest();
         if ($this->purgeTagsMethod !== $request->getMethod()) {

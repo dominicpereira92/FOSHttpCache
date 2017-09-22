@@ -19,20 +19,16 @@ The response tagger uses an instance of ``TagHeaderFormatter`` to know the
 header name used to mark tags on the content and to format the tags into the
 correct header value. This library ships with a
 ``CommaSeparatedTagHeaderFormatter`` that formats an array of tags into a
-comma-separated list. What kind of format you need obviously depends on what
-proxy you use and how this proxy is configured (if it even can be configured).
-It is important you do understand that the ``ResponseTagger`` is not directly
-linked to the proxy configuration so you are the one that has to make sure, they
-match. Don't worry too much though, the default settings will work out of the box
-and if you really need to adjust formatting, header names etc. you likely have
-some special environment that needs special adjustments. So for now, just remember
-you can configure all the stuff but you don't have to.
+comma-separated list. The format for specifying the tags depends on the caching
+proxy you use and its configuration. The default settings are made to match and
+work out of the box. If you need to change anything, be aware that the caching
+proxy is configured separately from your PHP application and the
+``ResponseTagger`` - it is up to you to make sure the configurations match.
 
-For example, the :doc:`default configuration of Varnish <varnish-configuration>` in
-this documentation requires the header to contain a comma-separated list of tags
-and the default examples use the header ``X-Cache-Tags``. If you don't change
-the ``TagHeaderFormatter`` nor the header name, everything will be created
-automatically and work out of the box for you::
+For example, the :doc:`default configuration of Varnish <varnish-configuration>`
+provided in this library uses the header ``X-Cache-Tags`` with a
+comma-separated list of tags. If you don't change the ``TagHeaderFormatter`` nor
+the header name, just instantiate the response tagger with its default settings::
 
     use FOS\HttpCache\ResponseTagger;
 
@@ -41,9 +37,10 @@ automatically and work out of the box for you::
 .. _response_tagger_optional_parameters:
 
 If you need a different behavior, you can provide your own
-``TagHeaderFormatter`` instance. Be aware that your
-:doc:`proxy configuration <proxy-configuration>` has to match the response.
-For example, to use a different header name::
+``TagHeaderFormatter`` instance. Don't forget to also adjust your
+:doc:`proxy configuration <proxy-configuration>` to match the response. To use
+a different header name, instantiate the ``CommaSeparatedTagHeaderFormatter``
+yourself and pass it to the ``ResponseTagger``::
 
     use FOS\HttpCache\ResponseTagger;
     use FOS\HttpCache\TagHeaderFormatter;
