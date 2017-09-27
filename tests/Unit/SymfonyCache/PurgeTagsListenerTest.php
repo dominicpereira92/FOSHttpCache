@@ -14,7 +14,6 @@ namespace FOS\HttpCache\Tests\Unit\SymfonyCache;
 use FOS\HttpCache\SymfonyCache\CacheEvent;
 use FOS\HttpCache\SymfonyCache\CacheInvalidation;
 use FOS\HttpCache\SymfonyCache\PurgeTagsListener;
-use FOS\HttpCache\SymfonyCache\TaggableStore;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
@@ -22,6 +21,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestMatcher;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
+use Toflar\Psr6HttpCacheStore\Psr6StoreInterface;
 
 class PurgeTagsListenerTest extends TestCase
 {
@@ -62,13 +62,13 @@ class PurgeTagsListenerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame(400, $response->getStatusCode());
-        $this->assertSame('Store must be an instance of TaggableStore! Check your proxy configuration!', $response->getContent());
+        $this->assertSame('Store must be an instance of '.Psr6StoreInterface::class.' Check your proxy configuration.', $response->getContent());
     }
 
     public function testPurgeAllowed()
     {
         /** @var StoreInterface $store */
-        $store = \Mockery::mock(TaggableStore::class)
+        $store = \Mockery::mock(Psr6StoreInterface::class)
             ->shouldReceive('invalidateTags')
             ->once()
             ->with(['foobar', 'other tag'])
@@ -91,7 +91,7 @@ class PurgeTagsListenerTest extends TestCase
     public function testPurgeAllowedMiss()
     {
         /** @var StoreInterface $store */
-        $store = \Mockery::mock(TaggableStore::class)
+        $store = \Mockery::mock(Psr6StoreInterface::class)
             ->shouldReceive('invalidateTags')
             ->once()
             ->with(['foobar', 'other tag'])

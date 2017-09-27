@@ -182,9 +182,18 @@ Tagging
     version 2.1.
 
 To support :doc:`cache tags <response-tagging>`, register the
-``PurgeTagsListener``. For this listener to work, you must use the
-:ref:`TaggableStore <taggablestore>` provided in this library, instead of the
-default cache implementation.
+``PurgeTagsListener``. The purge listener needs the special
+``Toflar\Psr6HttpCacheStore\Psr6Store`` cache store with tagging support.
+
+.. note::
+
+    Symfony's ``HttpCache`` store implementation does not support tags.
+    Therefore, you need the `Toflar Psr6Store`_ which implements the Symfony
+    Store interface but supports cache tagging. See the project README for more
+    information on the store.
+
+    To install the store, run
+    ``composer require toflar/psr6-symfony-http-cache-store``.
 
 Purging tags is only allowed from the same machine by default. To change this,
 you have the same configuration options as with the ``PurgeListener``. *Only
@@ -210,134 +219,32 @@ configure the HTTP method and header used for tag purging:
   **default**: ``X-Cache-Tags``
 
 To get cache tagging support, register the ``PurgeTagsListener`` and use the
-``TaggableStore`` in your ``AppCache``::
+``Psr6Store`` in your ``AppCache``::
 
     // app/AppCache.php
 
-    use FOS\HttpCache\SymfonyCache\TaggableStore;
+    use Toflar\Psr6HttpCacheStore\Psr6Store;
     use FOS\HttpCache\SymfonyCache\PurgeTagsListener;
 
     // ...
 
     /**
-     * Overwrite constructor to register the TaggableStore.
+     * Overwrite constructor to register the Psr6Store and PurgeTagsListener.
      */
     public function __construct(
         HttpKernelInterface $kernel,
         SurrogateInterface $surrogate = null,
         array $options = []
     ) {
-        $store = new TaggableStore(['cache_directory' => $kernel->getCacheDir()]);
+        $store = new Psr6Store([
+            'cache_directory' => $kernel->getCacheDir(),
+            'cache_tags_header' => 'X-Cache-Tags',
+        ]);
 
         parent::__construct($kernel, $store, $surrogate, $options);
 
         $this->addSubscriber(new PurgeTagsListener());
     }
-
-.. _taggablestore:
-
-TaggableStore
-^^^^^^^^^^^^^
-
-.. versionadded:: 2.1
-
-    The ``TaggableStore`` has been added in version 2.1.
-
-.. note::
-
-    You need at least versions 3.4 of ``symfony/cache`` and ``symfony/lock``
-    to use this feature. Add the following lines to your ``composer.json`` and run
-    ``composer update``:
-
-        "symfony/lock": "^3.4",
-        "symfony/cache": "^3.4",
-
-Symfony's ``HttpCache`` store implementation does not support tags. Therefore,
-this library ships with a ``TaggableStore`` that is build on top of PSR-6 to
-provide this functionality.
-
-Even if you do not want to invalidate cache entries by tags, you might be
-interested in using the ``TaggableStore``, as this store leverages the
-functionality of PSR-6 to prune expired cache entries to free up disk space.
-
-By default, the ``TaggableStore`` prunes the cache after a configurable number
-of cache write operations. You can disable automatic pruning, e.g. if you set
-up a cron job to prune, by setting the option ``prune_threshold`` to ``0``.
-
-Use the ``TaggableStore`` in your ``AppCache``::
-
-    // app/AppCache.php
-
-    use FOS\HttpCache\SymfonyCache\PurgeTagsListener;
-
-    // ...
-
-    /**
-     * Overwrite constructor to register the TaggableStore.
-     */
-    public function __construct(
-        HttpKernelInterface $kernel,
-        SurrogateInterface $surrogate = null,
-        array $options = []
-    ) {
-        $store = new TaggableStore(['cache_directory' => $kernel->getCacheDir()]);
-
-        parent::__construct($kernel, $store, $surrogate, $options);
-    }
-
-The ``TaggableStore`` can be configured by passing an array of ``$options`` as a
-second argument:
-
-* **cache_directory**: Path to the cache directory for the default cache
-  adapter and lock factory.
-
-  Either this or both cache and lock_factory are required.
-
-  **Type**: ``string``
-
-* **cache**: Explicitly specify the cache adapter you want to use. Make sure
-  that lock and cache have the same scope. *See warning below!*
-
-  **Type**: ``Symfony\Component\Cache\Adapter\TagAwareAdapterInterface``
-  **Default**: ``FilesystemAdapter`` instance with cache_directory
-
-* **lock_factory**: Explicitly specify the lock factory you want to use. Make
-  sure that lock and cache have the same scope. *See warning below!*
-
-  **Type**: ``Symfony\Component\Lock\Factory``
-  **Default**: ``Factory`` with ``SemaphoreStore`` if supported, ``FlockStore`` otherwise
-
-* **prune_threshold**: Configure the number of write actions until the store
-  will prune the expired cache entries. Pass 0 to disable automated pruning.
-
-  **Type**: ``int``
-  **Default**: 500
-
-* **purge_tags_header**: The HTTP header name used to check for tags
-
-  **Type**: ``string``
-  **Default**: ``X-Cache-Tags``
-
-.. warning::
-
-    It is possible to configure other cache adapters or lock stores than the
-    filesystem ones. Only do this if you are sure of what you are doing. In
-    `this pull request`_ Fabien Potentier refused to add PSR-6 store support to
-    the Symfony ``AppCache`` with the following arguments:
-
-        * Using a filesystem allows for ``opcache`` to make the cache very
-          effective;
-        * The cache contains some PHP (when using ESI for instance) and storing
-          PHP in anything else than a filesystem would mean ``eval()``-ing
-          strings coming from Redis / Memcache /...;
-        * HttpCache is triggered very early and does not have access to the
-          container or anything else really. And it should stay that way to be
-          efficient.
-
-    While the first and third point depend on what you do and need, be sure to
-    respect the second point. If you use network enabled caches like Redis or
-    Memcache, make sure that they are not shared with other systems in your
-    hosting center to avoid code injection.
 
 .. _symfony-cache user context:
 
@@ -438,4 +345,4 @@ and at the HTML body of the response.
 
 .. _HttpCache: http://symfony.com/doc/current/book/http_cache.html#symfony-reverse-proxy
 .. _HttpKernel: http://symfony.com/doc/current/components/http_kernel.html
-.. _this pull request: https://github.com/symfony/symfony/pull/20061#issuecomment-313339092
+.. _Toflar Psr6Store: https://github.com/Toflar/psr6-symfony-http-cache-store

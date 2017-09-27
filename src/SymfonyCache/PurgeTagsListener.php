@@ -11,9 +11,9 @@
 
 namespace FOS\HttpCache\SymfonyCache;
 
-use FOS\HttpCache\ProxyClient\Symfony;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Toflar\Psr6HttpCacheStore\Psr6StoreInterface;
 
 /**
  * Purge tags handler for the symfony built-in HttpCache.
@@ -94,9 +94,9 @@ class PurgeTagsListener extends AccessControlledListener
         $response = new Response();
         $store = $event->getKernel()->getStore();
 
-        if (!$store instanceof TaggableStore) {
+        if (!$store instanceof Psr6StoreInterface) {
             $response->setStatusCode(400);
-            $response->setContent('Store must be an instance of TaggableStore! Check your proxy configuration!');
+            $response->setContent('Store must be an instance of '.Psr6StoreInterface::class.'. Please check your proxy configuration.');
 
             $event->setResponse($response);
 
