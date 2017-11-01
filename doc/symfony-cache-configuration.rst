@@ -210,11 +210,11 @@ configure the HTTP method and header used for tag purging:
 
   **default**: ``null``
 
-* **purge_tags_method**: HTTP Method used with purge tags requests.
+* **tags_method**: HTTP Method used with purge tags requests.
 
   **default**: ``PURGETAGS``
 
-* **purge_tags_header**: HTTP Header that contains the comma-separated tags to purge.
+* **tags_header**: HTTP Header that contains the comma-separated tags to purge.
 
   **default**: ``X-Cache-Tags``
 

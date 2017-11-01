@@ -54,14 +54,16 @@ class Symfony extends HttpProxyClient implements PurgeCapable, RefreshCapable, T
     protected function configureOptions()
     {
         $resolver = parent::configureOptions();
-        $resolver->setDefault('purge_method', PurgeListener::DEFAULT_PURGE_METHOD);
         $resolver->setAllowedTypes('purge_method', 'string');
-        $resolver->setDefault('purge_tags_method', PurgeTagsListener::DEFAULT_PURGE_TAGS_METHOD);
-        $resolver->setAllowedTypes('purge_tags_method', 'string');
-        $resolver->setDefault('purge_tags_header', PurgeTagsListener::DEFAULT_PURGE_TAGS_HEADER);
-        $resolver->setAllowedTypes('purge_tags_header', 'string');
-        $resolver->setDefault('purge_tags_header_length', 7500);
-        $resolver->setAllowedTypes('purge_tags_header_length', 'int');
+        $resolver->setAllowedTypes('tags_method', 'string');
+        $resolver->setAllowedTypes('tags_header', 'string');
+        $resolver->setAllowedTypes('header_length', 'int');
+        $resolver->setDefaults([
+            'purge_method' => PurgeListener::DEFAULT_PURGE_METHOD,
+            'tags_method' => PurgeTagsListener::DEFAULT_TAGS_METHOD,
+            'tags_header' => PurgeTagsListener::DEFAULT_TAGS_HEADER,
+            'header_length' => 7500,
+        ]);
 
         return $resolver;
     }
@@ -77,13 +79,13 @@ class Symfony extends HttpProxyClient implements PurgeCapable, RefreshCapable, T
     {
         $escapedTags = $this->escapeTags($tags);
 
-        $chunks = $this->splitLongHeaderValue(implode(',', $escapedTags), $this->options['purge_tags_header_length']);
+        $chunks = $this->splitLongHeaderValue(implode(',', $escapedTags), $this->options['header_length']);
 
         foreach ($chunks as $chunk) {
             $this->queueRequest(
-                $this->options['purge_tags_method'],
+                $this->options['tags_method'],
                 '/',
-                [$this->options['purge_tags_header'] => $chunk]
+                [$this->options['tags_header'] => $chunk]
             );
         }
     }

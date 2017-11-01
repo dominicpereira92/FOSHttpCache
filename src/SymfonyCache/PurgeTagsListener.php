@@ -16,7 +16,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Toflar\Psr6HttpCacheStore\Psr6StoreInterface;
 
 /**
- * Purge tags handler for the symfony built-in HttpCache.
+ * Purge tags handler for the Symfony built-in HttpCache.
  *
  * @author Yanick Witschi <yanick.witschi@terminal42.ch>
  *
@@ -24,28 +24,28 @@ use Toflar\Psr6HttpCacheStore\Psr6StoreInterface;
  */
 class PurgeTagsListener extends AccessControlledListener
 {
-    const DEFAULT_PURGE_TAGS_METHOD = 'PURGETAGS';
-    const DEFAULT_PURGE_TAGS_HEADER = 'X-Cache-Tags';
+    const DEFAULT_TAGS_METHOD = 'PURGETAGS';
+    const DEFAULT_TAGS_HEADER = 'X-Cache-Tags';
 
     /**
      * The purge tags method to use.
      *
      * @var string
      */
-    private $purgeTagsMethod;
+    private $tagsMethod;
 
     /**
      * The purge tags header to use.
      *
      * @var string
      */
-    private $purgeTagsHeader;
+    private $tagsHeader;
 
     /**
      * When creating the purge listener, you can configure an additional option.
      *
-     * - purge_tags_method: HTTP method that identifies purge tags requests.
-     * - purge_tags_header: HTTP header that contains cache tags to invalidate.
+     * - tags_method: HTTP method that identifies purge tags requests.
+     * - tags_header: HTTP header that contains cache tags to invalidate.
      *
      * @param array $options Options to overwrite the default options
      *
@@ -57,8 +57,10 @@ class PurgeTagsListener extends AccessControlledListener
     {
         parent::__construct($options);
 
-        $this->purgeTagsMethod = $this->getOptionsResolver()->resolve($options)['purge_tags_method'];
-        $this->purgeTagsHeader = $this->getOptionsResolver()->resolve($options)['purge_tags_header'];
+        $options = $this->getOptionsResolver()->resolve($options);
+
+        $this->tagsMethod = $options['tags_method'];
+        $this->tagsHeader = $$options['tags_header'];
     }
 
     /**
@@ -81,7 +83,7 @@ class PurgeTagsListener extends AccessControlledListener
     public function handlePurgeTags(CacheEvent $event)
     {
         $request = $event->getRequest();
-        if ($this->purgeTagsMethod !== $request->getMethod()) {
+        if ($this->tagsMethod !== $request->getMethod()) {
             return;
         }
 
@@ -103,7 +105,7 @@ class PurgeTagsListener extends AccessControlledListener
             return;
         }
 
-        if (!$request->headers->has($this->purgeTagsHeader)) {
+        if (!$request->headers->has($this->tagsHeader)) {
             $response->setStatusCode(200, 'Not found');
 
             $event->setResponse($response);
@@ -111,7 +113,7 @@ class PurgeTagsListener extends AccessControlledListener
             return;
         }
 
-        $tags = explode(',', $request->headers->get($this->purgeTagsHeader));
+        $tags = explode(',', $request->headers->get($this->tagsHeader));
 
         if ($store->invalidateTags($tags)) {
             $response->setStatusCode(200, 'Purged');
@@ -130,10 +132,12 @@ class PurgeTagsListener extends AccessControlledListener
     protected function getOptionsResolver()
     {
         $resolver = parent::getOptionsResolver();
-        $resolver->setDefault('purge_tags_method', static::DEFAULT_PURGE_TAGS_METHOD);
-        $resolver->setAllowedTypes('purge_tags_method', 'string');
-        $resolver->setDefault('purge_tags_header', static::DEFAULT_PURGE_TAGS_HEADER);
-        $resolver->setAllowedTypes('purge_tags_header', 'string');
+        $resolver->setAllowedTypes('tags_method', 'string');
+        $resolver->setAllowedTypes('tags_header', 'string');
+        $resolver->setDefaults([
+            'tags_method' => static::DEFAULT_TAGS_METHOD,
+            'tags_header' => static::DEFAULT_TAGS_HEADER,
+        ]);
 
         return $resolver;
     }
